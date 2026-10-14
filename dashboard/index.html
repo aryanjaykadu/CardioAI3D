@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>CardioAI 3D Spatial Intelligence</title>
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">{"imports":{"three":"./lib/three.module.js"}}</script>
+</head>
+<body>
+
+<!-- Ambient canvas -->
+<div class="orbs" aria-hidden="true"><i class="orb orb--ruby"></i><i class="orb orb--purple"></i><i class="orb orb--indigo"></i></div>
+<div class="pixel-grid" aria-hidden="true"></div>
+
+<!-- Fixed 3D canvas (Step 3 mounts Three.js here) -->
+<div id="scene" class="scene" aria-hidden="true"></div>
+
+<!-- Decorative telemetry overlay -->
+<svg class="telemetry" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false">
+  <g fill="none" stroke="currentColor">
+    <circle cx="500" cy="500" r="440" stroke-width="1" opacity=".55"/>
+    <path d="M500 44v32M500 924v32M44 500h32M924 500h32" stroke-width="1.5"/>
+    <circle class="ring ring--mid" cx="500" cy="500" r="370" stroke-width="1.25" stroke-dasharray="48 12 16 12"/>
+    <circle class="ring ring--in" cx="500" cy="500" r="300" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round"/>
+  </g>
+</svg>
+
+<!-- Floating navbar -->
+<header class="nav glass" role="banner">
+  <div class="nav__brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <span>CardioAI <small>3D Spatial Intelligence</small></span>
+  </div>
+  <nav class="nav__patients" aria-label="Patient cases">
+    <div class="seg" role="tablist" id="patient-tabs">
+      <button class="seg__btn pressable" role="tab" aria-selected="true" data-patient="1">Patient 1</button>
+      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="2">Patient 2</button>
+      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="3">Patient 3</button>
+      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="4">Patient 4</button>
+      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="5">Patient 5</button>
+    </div>
+  </nav>
+  <div class="nav__status"><span class="dot dot--ok"></span><span>Model integrity: zero leakage</span></div>
+</header>
+
+<!-- 3-column spatial HUD -->
+<main class="hud">
+
+  <!-- Left: patient and physiology -->
+  <aside class="col col--left" aria-label="Patient physiology">
+    <section class="panel glass tilt" id="panel-patient">
+      <h2 class="panel__title">Patient</h2>
+      <p class="patient-id num" id="patient-id">Patient 1</p>
+      <p class="muted">Catheterization-grounded case</p>
+    </section>
+    <section class="panel glass tilt" id="panel-ecg">
+      <div class="panel__head"><h2 class="panel__title">Lead II telemetry</h2><span class="badge" id="ecg-badge" data-level="ok">Normal Sinus Rhythm</span></div>
+      <div class="ecg"><canvas id="ecg-canvas" role="img" aria-label="Simulated lead II electrocardiogram"></canvas></div>
+      <dl class="ecg__read num">
+        <div><dt>Heart rate</dt><dd id="ecg-hr">— bpm</dd></div><div><dt>ST level</dt><dd id="ecg-st">— mm</dd></div>
+        <div><dt>Sweep</dt><dd>25 mm/s</dd></div><div><dt>Calibration</dt><dd>10 mm/mV</dd></div>
+      </dl>
+      <p class="muted">Schematic waveform. ST level is taken from the model attribution, not from a recording.</p>
+    </section>
+    <section class="panel glass tilt" id="panel-biomarkers">
+      <h2 class="panel__title">Clinical measurements</h2>
+      <table class="metrics num">
+        <tbody id="biomarker-rows">
+          <tr data-key="Age"><th>Age</th><td>—</td><td class="unit">years</td></tr>
+          <tr data-key="BP"><th>Blood pressure</th><td>—</td><td class="unit">mmHg</td></tr>
+          <tr data-key="HR"><th>Heart rate</th><td>—</td><td class="unit">bpm</td></tr>
+          <tr data-key="EF-TTE"><th>Ejection fraction</th><td>—</td><td class="unit">%</td></tr>
+          <tr data-key="Region_RWMA"><th>Wall motion (RWMA)</th><td>—</td><td class="unit">regions</td></tr>
+          <tr data-key="Typical_Chest_Pain"><th>Typical chest pain</th><td>—</td><td class="unit"></td></tr>
+          <tr data-key="DM"><th>Diabetes</th><td>—</td><td class="unit"></td></tr>
+          <tr data-key="TG"><th>Triglycerides</th><td>—</td><td class="unit">mg/dL</td></tr>
+          <tr data-key="ESR"><th>ESR</th><td>—</td><td class="unit">mm/h</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </aside>
+
+  <!-- Center: 3D heart viewport -->
+  <section class="viewport" aria-label="3D heart viewport">
+    <span class="reticle reticle--tl" aria-hidden="true"></span><span class="reticle reticle--tr" aria-hidden="true"></span>
+    <span class="reticle reticle--bl" aria-hidden="true"></span><span class="reticle reticle--br" aria-hidden="true"></span>
+
+    <div class="viewport__top">
+      <div class="risk-chip glass" id="risk-chip" data-level="ok">
+        <span class="muted">CAD risk</span>
+        <strong class="num risk-chip__value" id="cad-risk">—%</strong>
+      </div>
+    </div>
+
+    <div class="vessel-labels" id="vessel-labels" aria-hidden="true"></div>
+
+    <div class="dock glass" role="toolbar" aria-label="Heart view controls">
+      <button class="dock__btn pressable" data-view="anterior">Anterior</button>
+      <button class="dock__btn pressable" data-view="posterior">Posterior</button>
+      <button class="dock__btn pressable" data-view="vessels">Vessels</button>
+      <button class="dock__btn pressable" data-layer="shell" aria-pressed="true">Glass shell</button>
+      <button class="dock__btn pressable" data-layer="flow" aria-pressed="true">Flow</button>
+    </div>
+  </section>
+
+  <!-- Right: predictions and explainability -->
+  <aside class="col col--right" aria-label="Predictions and explainability">
+    <section class="panel glass tilt" id="panel-cad" data-level="ok">
+      <h2 class="panel__title">CAD status</h2>
+      <div class="cad"><strong class="num cad__pct" id="cad-card-pct">—%</strong><div><p id="cad-status">—</p><p class="muted" id="cad-sev"></p></div></div>
+    </section>
+    <section class="panel glass tilt" id="panel-vessels">
+      <h2 class="panel__title">Coronary vessel telemetry</h2>
+      <div class="vcards" id="vessel-cards">
+      <article class="vcard" data-vessel="LAD" data-level="ok">
+        <header><h3>LAD <small class="muted">Left anterior descending</small></h3><strong class="num vcard__pct">—%</strong></header>
+        <p class="vcard__status">—</p><p class="muted vcard__sev"></p>
+        <button class="chip pressable vcard__focus" type="button">Focus camera</button>
+      </article>
+      <article class="vcard" data-vessel="LCX" data-level="ok">
+        <header><h3>LCX <small class="muted">Left circumflex</small></h3><strong class="num vcard__pct">—%</strong></header>
+        <p class="vcard__status">—</p><p class="muted vcard__sev"></p>
+        <button class="chip pressable vcard__focus" type="button">Focus camera</button>
+      </article>
+      <article class="vcard" data-vessel="RCA" data-level="ok">
+        <header><h3>RCA <small class="muted">Right coronary</small></h3><strong class="num vcard__pct">—%</strong></header>
+        <p class="vcard__status">—</p><p class="muted vcard__sev"></p>
+        <button class="chip pressable vcard__focus" type="button">Focus camera</button>
+      </article>
+      </div>
+    </section>
+    <section class="panel glass tilt" id="panel-shap">
+      <h2 class="panel__title">TreeSHAP attribution waterfall</h2>
+      <div class="seg seg--small" role="tablist"><button class="seg__btn pressable" aria-selected="true">TreeSHAP</button><button class="seg__btn pressable" aria-selected="false">LIME</button></div>
+      <ul class="shap" id="shap-list"></ul>
+    </section>
+    <section class="panel glass tilt" id="panel-whatif">
+      <div class="panel__head"><h2 class="panel__title">What-if simulator</h2><button class="chip pressable" id="whatif-reset">Reset</button></div>
+      <div class="field"><label for="w-age">Age <output class="num" for="w-age">60</output></label><input id="w-age" type="range" min="20" max="90" value="60"></div>
+      <div class="field"><label for="w-ef">Ejection fraction <output class="num" for="w-ef">50</output></label><input id="w-ef" type="range" min="15" max="70" value="50"></div>
+      <div class="field"><label for="w-rwma">Wall motion regions <output class="num" for="w-rwma">0</output></label><input id="w-rwma" type="range" min="0" max="4" value="0"></div>
+      <div class="field"><label for="w-bp">Blood pressure <output class="num" for="w-bp">120</output></label><input id="w-bp" type="range" min="80" max="220" value="120"></div>
+      <div class="field"><label for="w-tg">Triglycerides <output class="num" for="w-tg">150</output></label><input id="w-tg" type="range" min="50" max="500" value="150"></div>
+      <div class="field"><label for="w-esr">ESR <output class="num" for="w-esr">20</output></label><input id="w-esr" type="range" min="1" max="100" value="20"></div>
+      <div class="field field--switch"><label for="w-cp">Typical chest pain</label><input id="w-cp" type="checkbox" role="switch"></div>
+      <div class="field field--switch"><label for="w-dm">Diabetes</label><input id="w-dm" type="checkbox" role="switch"></div>
+      <p class="delta num" id="whatif-delta">Change vs. baseline: 0.0 pts</p>
+    </section>
+  </aside>
+</main>
+
+<!-- Safety disclaimer -->
+<button class="disclaimer pressable" id="disclaimer" aria-expanded="false" aria-controls="disclaimer-text">
+  <span aria-hidden="true">⚠️</span> <strong>Safety Disclaimer</strong>
+  <span class="disclaimer__text" id="disclaimer-text">Decision support only. Not a diagnosis. Simulated values are not measurements.</span>
+</button>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

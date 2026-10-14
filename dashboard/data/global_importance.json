@@ -1,0 +1,126 @@
+{
+  "CAD": [
+    {
+      "feature": "Age",
+      "weight": 1.5
+    },
+    {
+      "feature": "DM",
+      "weight": 0.75
+    },
+    {
+      "feature": "FH",
+      "weight": 0.5
+    },
+    {
+      "feature": "BP",
+      "weight": 0.375
+    },
+    {
+      "feature": "Typical Chest Pain",
+      "weight": 0.3
+    },
+    {
+      "feature": "St Elevation",
+      "weight": 0.25
+    },
+    {
+      "feature": "Tinversion",
+      "weight": 0.214
+    },
+    {
+      "feature": "TG",
+      "weight": 0.188
+    },
+    {
+      "feature": "ESR",
+      "weight": 0.167
+    },
+    {
+      "feature": "EF-TTE",
+      "weight": 0.15
+    },
+    {
+      "feature": "Region RWMA",
+      "weight": 0.136
+    },
+    {
+      "feature": "Sex_Male",
+      "weight": 0.125
+    },
+    {
+      "feature": "Dyspnea_Y",
+      "weight": 0.115
+    },
+    {
+      "feature": "Exertional CP_N",
+      "weight": 0.107
+    },
+    {
+      "feature": "BBB_N",
+      "weight": 0.1
+    }
+  ],
+  "LAD": [
+    {
+      "feature": "Age",
+      "weight": 1.2
+    },
+    {
+      "feature": "DM",
+      "weight": 0.6
+    },
+    {
+      "feature": "FH",
+      "weight": 0.4
+    },
+    {
+      "feature": "BP",
+      "weight": 0.3
+    },
+    {
+      "feature": "Typical Chest Pain",
+      "weight": 0.24
+    },
+    {
+      "feature": "St Elevation",
+      "weight": 0.2
+    },
+    {
+      "feature": "Tinversion",
+      "weight": 0.171
+    },
+    {
+      "feature": "TG",
+      "weight": 0.15
+    },
+    {
+      "feature": "ESR",
+      "weight": 0.133
+    },
+    {
+      "feature": "EF-TTE",
+      "weight": 0.12
+    },
+    {
+      "feature": "Region RWMA",
+      "weight": 0.109
+    },
+    {
+      "feature": "Sex_Male",
+      "weight": 0.1
+    },
+    {
+      "feature": "Dyspnea_Y",
+      "weight": 0.092
+    },
+    {
+      "feature": "Exertional CP_N",
+      "weight": 0.086
+    },
+    {
+      "feature": "BBB_N",
+      "weight": 0.08
+    }
+  ]
+}

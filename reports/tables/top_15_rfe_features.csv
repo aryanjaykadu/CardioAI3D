@@ -1,0 +1,24 @@
+Clinical_Feature,Fold_Selection_Count
+Age,5
+DM,5
+FH,5
+Typical Chest Pain,5
+Tinversion,5
+TG,5
+Region RWMA,5
+BBB_N,5
+St Elevation,4
+Sex_Male,4
+Exertional CP_N,4
+VHD_N,4
+PR,3
+LVH_Y,3
+HTN,2
+EF-TTE,2
+BP,2
+Nonanginal_Y,2
+ESR,1
+BBB_LBBB,1
+FBS,1
+Dyspnea_Y,1
+Q Wave,1

@@ -1,0 +1,517 @@
+[
+  {
+    "id": "patient-1",
+    "title": "Patient Case 1: High-Risk Multi-Vessel CAD",
+    "raw_index": 39,
+    "predictions": {
+      "CAD": {
+        "probability": 96.2,
+        "status": "Positive (CAD Detected)",
+        "severity": "High Risk",
+        "actual": "CAD"
+      },
+      "LAD": {
+        "probability": 99.0,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Critical / Severe",
+        "actual": "Stenotic"
+      },
+      "LCX": {
+        "probability": 55.0,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Moderate",
+        "actual": "Stenotic"
+      },
+      "RCA": {
+        "probability": 43.4,
+        "status": "Normal Flow",
+        "severity": "Patent",
+        "actual": "Stenotic"
+      }
+    },
+    "measurements": {
+      "Age": 46,
+      "Sex": "Male",
+      "BP": 130,
+      "PR": 70,
+      "BMI": 26.1,
+      "EF_TTE": 20.0,
+      "Region_RWMA": 4,
+      "Typical_Chest_Pain": 1,
+      "DM": 1,
+      "HTN": 1,
+      "Current_Smoker": 0,
+      "FBS": 153.0,
+      "CR": 0.6,
+      "TG": 204.0,
+      "LDL": 110.0,
+      "HDL": 39.0,
+      "ESR": 22.0,
+      "WBC": 8000.0
+    },
+    "shap_contributions": [
+      {
+        "feature": "St Elevation",
+        "importance": 3.666060555964672,
+        "abs_importance": 3.666060555964672
+      },
+      {
+        "feature": "Region RWMA",
+        "importance": 2.412677981344,
+        "abs_importance": 2.412677981344
+      },
+      {
+        "feature": "EF-TTE",
+        "importance": -2.404369488180475,
+        "abs_importance": 2.404369488180475
+      },
+      {
+        "feature": "Tinversion",
+        "importance": 1.2929198703109082,
+        "abs_importance": 1.2929198703109082
+      },
+      {
+        "feature": "DM",
+        "importance": 1.1710800875382399,
+        "abs_importance": 1.1710800875382399
+      },
+      {
+        "feature": "Age",
+        "importance": -0.975102691510111,
+        "abs_importance": 0.975102691510111
+      },
+      {
+        "feature": "Sex_Male",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Exertional CP_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "BBB_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Typical Chest Pain",
+        "importance": 0.7364034738754822,
+        "abs_importance": 0.7364034738754822
+      }
+    ]
+  },
+  {
+    "id": "patient-2",
+    "title": "Patient Case 2: Critical Isolated LAD Stenosis (Anterior Wall)",
+    "raw_index": 99,
+    "predictions": {
+      "CAD": {
+        "probability": 95.7,
+        "status": "Positive (CAD Detected)",
+        "severity": "High Risk",
+        "actual": "CAD"
+      },
+      "LAD": {
+        "probability": 96.9,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Critical / Severe",
+        "actual": "Stenotic"
+      },
+      "LCX": {
+        "probability": 62.6,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Moderate",
+        "actual": "Normal"
+      },
+      "RCA": {
+        "probability": 51.5,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Moderate",
+        "actual": "Normal"
+      }
+    },
+    "measurements": {
+      "Age": 61,
+      "Sex": "Male",
+      "BP": 100,
+      "PR": 50,
+      "BMI": 22.4,
+      "EF_TTE": 30.0,
+      "Region_RWMA": 0,
+      "Typical_Chest_Pain": 1,
+      "DM": 0,
+      "HTN": 0,
+      "Current_Smoker": 0,
+      "FBS": 79.0,
+      "CR": 0.8,
+      "TG": 74.0,
+      "LDL": 39.0,
+      "HDL": 28.0,
+      "ESR": 5.0,
+      "WBC": 4200.0
+    },
+    "shap_contributions": [
+      {
+        "feature": "EF-TTE",
+        "importance": -1.5195498164352272,
+        "abs_importance": 1.5195498164352272
+      },
+      {
+        "feature": "Tinversion",
+        "importance": 1.2929198703109082,
+        "abs_importance": 1.2929198703109082
+      },
+      {
+        "feature": "BP",
+        "importance": -1.2882126897656572,
+        "abs_importance": 1.2882126897656572
+      },
+      {
+        "feature": "Sex_Male",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Dyspnea_Y",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Exertional CP_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "BBB_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Typical Chest Pain",
+        "importance": 0.7364034738754822,
+        "abs_importance": 0.7364034738754822
+      },
+      {
+        "feature": "ESR",
+        "importance": -0.7131199025797174,
+        "abs_importance": 0.7131199025797174
+      },
+      {
+        "feature": "TG",
+        "importance": -0.6111110718444911,
+        "abs_importance": 0.6111110718444911
+      }
+    ]
+  },
+  {
+    "id": "patient-3",
+    "title": "Patient Case 3: Right Coronary Artery (RCA) Stenosis",
+    "raw_index": 154,
+    "predictions": {
+      "CAD": {
+        "probability": 96.5,
+        "status": "Positive (CAD Detected)",
+        "severity": "High Risk",
+        "actual": "CAD"
+      },
+      "LAD": {
+        "probability": 97.4,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Critical / Severe",
+        "actual": "Normal"
+      },
+      "LCX": {
+        "probability": 62.4,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Moderate",
+        "actual": "Normal"
+      },
+      "RCA": {
+        "probability": 47.6,
+        "status": "Normal Flow",
+        "severity": "Patent",
+        "actual": "Stenotic"
+      }
+    },
+    "measurements": {
+      "Age": 60,
+      "Sex": "Male",
+      "BP": 120,
+      "PR": 70,
+      "BMI": 28.4,
+      "EF_TTE": 40.0,
+      "Region_RWMA": 0,
+      "Typical_Chest_Pain": 1,
+      "DM": 0,
+      "HTN": 0,
+      "Current_Smoker": 0,
+      "FBS": 95.0,
+      "CR": 1.1,
+      "TG": 62.0,
+      "LDL": 42.0,
+      "HDL": 39.0,
+      "ESR": 2.0,
+      "WBC": 3700.0
+    },
+    "shap_contributions": [
+      {
+        "feature": "Tinversion",
+        "importance": 1.2929198703109082,
+        "abs_importance": 1.2929198703109082
+      },
+      {
+        "feature": "ESR",
+        "importance": -0.8634465719388564,
+        "abs_importance": 0.8634465719388564
+      },
+      {
+        "feature": "Sex_Male",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Dyspnea_Y",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Exertional CP_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "BBB_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Typical Chest Pain",
+        "importance": 0.7364034738754822,
+        "abs_importance": 0.7364034738754822
+      },
+      {
+        "feature": "TG",
+        "importance": -0.7088350009544252,
+        "abs_importance": 0.7088350009544252
+      },
+      {
+        "feature": "EF-TTE",
+        "importance": -0.6347301446899792,
+        "abs_importance": 0.6347301446899792
+      },
+      {
+        "feature": "DM",
+        "importance": -0.5465040408511785,
+        "abs_importance": 0.5465040408511785
+      }
+    ]
+  },
+  {
+    "id": "patient-4",
+    "title": "Patient Case 4: Left Circumflex (LCX) Lateral Ischemia",
+    "raw_index": 109,
+    "predictions": {
+      "CAD": {
+        "probability": 96.7,
+        "status": "Positive (CAD Detected)",
+        "severity": "High Risk",
+        "actual": "CAD"
+      },
+      "LAD": {
+        "probability": 93.2,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Critical / Severe",
+        "actual": "Normal"
+      },
+      "LCX": {
+        "probability": 67.1,
+        "status": "Stenotic (>=50% Narrowing)",
+        "severity": "Moderate",
+        "actual": "Stenotic"
+      },
+      "RCA": {
+        "probability": 49.4,
+        "status": "Normal Flow",
+        "severity": "Patent",
+        "actual": "Stenotic"
+      }
+    },
+    "measurements": {
+      "Age": 64,
+      "Sex": "Fmale",
+      "BP": 160,
+      "PR": 70,
+      "BMI": 34.2,
+      "EF_TTE": 50.0,
+      "Region_RWMA": 0,
+      "Typical_Chest_Pain": 1,
+      "DM": 1,
+      "HTN": 1,
+      "Current_Smoker": 1,
+      "FBS": 184.0,
+      "CR": 0.7,
+      "TG": 170.0,
+      "LDL": 100.0,
+      "HDL": 39.0,
+      "ESR": 18.0,
+      "WBC": 4700.0
+    },
+    "shap_contributions": [
+      {
+        "feature": "BP",
+        "importance": 1.3414580898487596,
+        "abs_importance": 1.3414580898487596
+      },
+      {
+        "feature": "DM",
+        "importance": 1.1710800875382399,
+        "abs_importance": 1.1710800875382399
+      },
+      {
+        "feature": "Exertional CP_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "BBB_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Typical Chest Pain",
+        "importance": 0.7364034738754822,
+        "abs_importance": 0.7364034738754822
+      },
+      {
+        "feature": "Tinversion",
+        "importance": -0.4950036074904621,
+        "abs_importance": 0.4950036074904621
+      },
+      {
+        "feature": "Region RWMA",
+        "importance": -0.43545895273038043,
+        "abs_importance": 0.43545895273038043
+      },
+      {
+        "feature": "Age",
+        "importance": 0.4234970201191424,
+        "abs_importance": 0.4234970201191424
+      },
+      {
+        "feature": "FH",
+        "importance": -0.3559953275919879,
+        "abs_importance": 0.3559953275919879
+      },
+      {
+        "feature": "EF-TTE",
+        "importance": 0.2500895270552687,
+        "abs_importance": 0.2500895270552687
+      }
+    ]
+  },
+  {
+    "id": "patient-5",
+    "title": "Patient Case 5: Normal Cardiac Flow / Low Ischemic Risk",
+    "raw_index": 4,
+    "predictions": {
+      "CAD": {
+        "probability": 24.0,
+        "status": "Negative (Normal)",
+        "severity": "Low Risk",
+        "actual": "Normal"
+      },
+      "LAD": {
+        "probability": 16.2,
+        "status": "Normal Flow",
+        "severity": "Patent",
+        "actual": "Normal"
+      },
+      "LCX": {
+        "probability": 21.0,
+        "status": "Normal Flow",
+        "severity": "Patent",
+        "actual": "Normal"
+      },
+      "RCA": {
+        "probability": 8.4,
+        "status": "Normal Flow",
+        "severity": "Patent",
+        "actual": "Normal"
+      }
+    },
+    "measurements": {
+      "Age": 50,
+      "Sex": "Fmale",
+      "BP": 110,
+      "PR": 80,
+      "BMI": 37.2,
+      "EF_TTE": 50.0,
+      "Region_RWMA": 0,
+      "Typical_Chest_Pain": 0,
+      "DM": 0,
+      "HTN": 1,
+      "Current_Smoker": 0,
+      "FBS": 104.0,
+      "CR": 1.0,
+      "TG": 170.0,
+      "LDL": 110.0,
+      "HDL": 50.0,
+      "ESR": 27.0,
+      "WBC": 9200.0
+    },
+    "shap_contributions": [
+      {
+        "feature": "Typical Chest Pain",
+        "importance": -0.8690887844836772,
+        "abs_importance": 0.8690887844836772
+      },
+      {
+        "feature": "BP",
+        "importance": -0.8499342264965878,
+        "abs_importance": 0.8499342264965878
+      },
+      {
+        "feature": "Dyspnea_Y",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Exertional CP_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "BBB_N",
+        "importance": 0.8,
+        "abs_importance": 0.8
+      },
+      {
+        "feature": "Age",
+        "importance": -0.664302755592499,
+        "abs_importance": 0.664302755592499
+      },
+      {
+        "feature": "DM",
+        "importance": -0.5465040408511785,
+        "abs_importance": 0.5465040408511785
+      },
+      {
+        "feature": "Tinversion",
+        "importance": -0.4950036074904621,
+        "abs_importance": 0.4950036074904621
+      },
+      {
+        "feature": "Region RWMA",
+        "importance": -0.43545895273038043,
+        "abs_importance": 0.43545895273038043
+      },
+      {
+        "feature": "ESR",
+        "importance": 0.38927567272063546,
+        "abs_importance": 0.38927567272063546
+      }
+    ]
+  }
+]
