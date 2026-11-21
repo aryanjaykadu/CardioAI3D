@@ -1,151 +1,122 @@
-"""
-Unit and Integration Tests for CAD & Vessel-Specific Stenosis Multitask ML Pipeline.
+"""Fast checks for the CardioAI pipeline.   Run:  python -m pytest -q"""
 
-Tests include:
-- Strict zero-leakage target exclusion
-- Dataset dimensionality and binary target validation
-- Multitask PyTorch architecture forward pass and head outputs
-- Binary Focal Loss class-imbalance weighting
-- RFE feature selection (pruning to 15 features including Region RWMA & Tinversion)
-- Platt Scaling & Isotonic Regression output probability calibration
-- End-to-end zero-leakage cross-validation execution
-"""
+import json
+import os
 
-import unittest
 import numpy as np
 import pandas as pd
-import torch
+import pytest
+from sklearn.metrics import roc_auc_score
 
-from src.data_loader import load_dataset, prepare_features_and_targets, LEAKAGE_COLUMNS
-from src.preprocessing import build_preprocessor, get_feature_names_from_preprocessor
-from src.models import (
-    MultitaskCardiacNN,
-    BinaryFocalLoss,
-    MultitaskCalibrator,
-    MultitaskCardiacModel,
-    TARGET_TASKS
-)
-from src.evaluation import (
-    calculate_metrics,
-    run_rfe_feature_selection,
-    evaluate_multitask_pipeline_cv,
-    format_multitask_metrics_table
-)
+from src.baselines import esc2019_ptp
+from src.benchmark import (ModelSpec, cross_validate_spec, fast_auc, fit_lr,
+                           rule_out_stats, rule_out_threshold)
+from src.features import ALL_FEATURES, TARGET_COLUMNS, encode_features, encode_targets
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-class TestMultitaskPipeline(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.df = load_dataset()
-        cls.X, cls.targets = prepare_features_and_targets(cls.df)
-
-    def test_strict_zero_leakage(self):
-        """Verify that LAD, LCX, RCA, and Cath are NEVER present in input features X."""
-        for col in LEAKAGE_COLUMNS:
-            self.assertNotIn(col, self.X.columns, f"Target leakage detected: {col} is in X!")
-
-    def test_dataset_dimensions(self):
-        """Check expected row count (303 patients) and 55 predictor features."""
-        self.assertEqual(len(self.X), 303)
-        self.assertEqual(self.X.shape[1], 55)
-
-    def test_targets_present_and_binary(self):
-        """Check that all 4 targets (CAD, LAD, LCX, RCA) exist and have binary values {0, 1}."""
-        for target_name in TARGET_TASKS:
-            self.assertIn(target_name, self.targets)
-            target_series = self.targets[target_name]
-            self.assertEqual(len(target_series), 303)
-            unique_vals = set(target_series.unique())
-            self.assertTrue(unique_vals.issubset({0, 1}), f"Non-binary values in {target_name}: {unique_vals}")
-
-    def test_multitask_nn_architecture(self):
-        """Verify PyTorch shared hidden layers branch into 4 distinct classification heads."""
-        input_dim = 15
-        batch_size = 16
-        model = MultitaskCardiacNN(input_dim=input_dim, hidden_dim1=32, hidden_dim2=16, head_dim=8)
-        dummy_x = torch.randn(batch_size, input_dim)
-        outputs = model(dummy_x)
-
-        self.assertIsInstance(outputs, dict)
-        for task in TARGET_TASKS:
-            self.assertIn(task, outputs)
-            self.assertEqual(outputs[task].shape, torch.Size([batch_size]))
-
-    def test_binary_focal_loss_counteracts_imbalance(self):
-        """Verify focal loss correctly downweights easy examples and scales with class imbalance."""
-        focal_loss = BinaryFocalLoss(alpha=0.75, gamma=2.0)
-        logits = torch.tensor([5.0, -5.0, 0.0]) # easy positive, easy negative, uncertain
-        targets = torch.tensor([1.0, 0.0, 1.0])
-        loss = focal_loss(logits, targets)
-        self.assertGreater(float(loss), 0.0)
-        self.assertFalse(torch.isnan(loss))
-
-    def test_rfe_prunes_to_top_15_clinical_features(self):
-        """Verify RFE selects exactly 15 features including critical predictors like Region RWMA and Tinversion."""
-        preprocessor, _, _ = build_preprocessor(self.X)
-        X_trans = preprocessor.fit_transform(self.X)
-        feature_names = get_feature_names_from_preprocessor(preprocessor)
-
-        mask, selected_names = run_rfe_feature_selection(
-            X_trans,
-            self.targets['CAD'].values,
-            feature_names,
-            n_features_to_select=15,
-            random_state=42
-        )
-        self.assertEqual(len(selected_names), 15)
-        self.assertEqual(np.sum(mask), 15)
-        # Verify clinical hallmarks are captured
-        self.assertTrue(any('Region RWMA' in fn for fn in selected_names), "Region RWMA should be among top predictors")
-        self.assertTrue(any('Tinversion' in fn for fn in selected_names), "Tinversion should be among top predictors")
-
-    def test_platt_and_isotonic_calibration(self):
-        """Verify Platt Scaling and Isotonic Regression produce strictly bounded probabilities."""
-        logits_dict = {
-            'CAD': np.array([-2.5, 0.0, 3.2, 1.5, -1.0]),
-            'LAD': np.array([-1.2, 1.8, 0.5, -0.4, 2.1]),
-            'LCX': np.array([-3.0, -0.5, 0.2, 1.1, -1.8]),
-            'RCA': np.array([0.1, 2.2, -1.5, 0.8, -0.9])
-        }
-        y_dict = {
-            'CAD': np.array([0, 0, 1, 1, 0]),
-            'LAD': np.array([0, 1, 1, 0, 1]),
-            'LCX': np.array([0, 0, 1, 1, 0]),
-            'RCA': np.array([0, 1, 0, 1, 0])
-        }
-
-        # Test Platt Scaling
-        platt = MultitaskCalibrator(method='platt')
-        platt.fit(logits_dict, y_dict)
-        probs_platt = platt.predict_proba(logits_dict)
-        for task in TARGET_TASKS:
-            self.assertTrue(np.all(probs_platt[task] >= 0.0) and np.all(probs_platt[task] <= 1.0))
-
-        # Test Isotonic Regression
-        iso = MultitaskCalibrator(method='isotonic')
-        iso.fit(logits_dict, y_dict)
-        probs_iso = iso.predict_proba(logits_dict)
-        for task in TARGET_TASKS:
-            self.assertTrue(np.all(probs_iso[task] >= 0.0) and np.all(probs_iso[task] <= 1.0))
-
-    def test_evaluation_metrics_calculation(self):
-        """Verify calculation of clinical metrics and calibration scores."""
-        y_true = np.array([0, 1, 1, 0, 1])
-        y_pred = np.array([0, 1, 1, 0, 0])
-        y_proba = np.array([0.1, 0.9, 0.8, 0.2, 0.4])
-        metrics = calculate_metrics(y_true, y_pred, y_proba)
-
-        self.assertIn('Accuracy', metrics)
-        self.assertIn('Precision', metrics)
-        self.assertIn('Recall (Sensitivity)', metrics)
-        self.assertIn('F1-Score', metrics)
-        self.assertIn('ROC-AUC', metrics)
-        self.assertIn('Brier Score (Calibration)', metrics)
-        self.assertIn('ECE (Calibration Error)', metrics)
-        self.assertGreaterEqual(metrics['Accuracy'], 0.0)
-        self.assertLessEqual(metrics['Accuracy'], 1.0)
+@pytest.fixture(scope="module")
+def data():
+    df = pd.read_csv(os.path.join(ROOT, "data", "z_alizadeh_sani_extended.csv"))
+    return df, encode_features(df), encode_targets(df)
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_shapes_and_no_target_columns(data):
+    df, X, Y = data
+    assert X.shape == (303, 55)
+    assert list(X.columns) == ALL_FEATURES
+    for c in TARGET_COLUMNS:
+        assert c not in X.columns
+    assert not X.isnull().any().any()
+    assert all(set(np.unique(v)) == {0, 1} for v in Y.values())
+
+
+def test_cad_label_matches_vessels(data):
+    _, _, Y = data
+    any_vessel = Y["LAD"] | Y["LCX"] | Y["RCA"]
+    assert (Y["CAD"] == any_vessel).mean() > 0.99  # one record in the source data disagrees
+
+
+def test_esc_table_spot_values(data):
+    rows = pd.DataFrame([
+        {"Age": 55, "Sex": 1, "Typical Chest Pain": 1, "Atypical": 0, "Nonanginal": 0, "Dyspnea": 0},
+        {"Age": 65, "Sex": 0, "Typical Chest Pain": 0, "Atypical": 1, "Nonanginal": 0, "Dyspnea": 0},
+        {"Age": 72, "Sex": 1, "Typical Chest Pain": 0, "Atypical": 0, "Nonanginal": 0, "Dyspnea": 1},
+    ])
+    assert np.allclose(esc2019_ptp(rows), [0.32, 0.11, 0.32])
+
+
+def test_fast_auc_matches_sklearn():
+    rng = np.random.default_rng(0)
+    y = rng.integers(0, 2, 200)
+    p = np.round(rng.random(200), 2)  # include ties
+    assert abs(fast_auc(y, p) - roc_auc_score(y, p)) < 1e-12
+
+
+def test_rule_out_threshold_reaches_target_sensitivity():
+    rng = np.random.default_rng(1)
+    y = rng.integers(0, 2, 500)
+    p = np.clip(0.3 * y + rng.random(500) * 0.7, 0, 1)
+    t = rule_out_threshold(y, p, 0.95)
+    assert rule_out_stats(y, (p < t).astype(int))["sensitivity"] >= 0.95
+
+
+def test_cv_signal_and_negative_control(data):
+    _, X, Y = data
+    spec = ModelSpec("t", "lr", lambda Xa, Ya, s: fit_lr(Xa, Ya, s, tasks=["CAD"]), ["CAD"], "")
+    real = cross_validate_spec(spec, X, Y, 1, 5, 42, tune_threshold=False)
+    assert fast_auc(Y["CAD"], real["oof"]["CAD"][0]) > 0.85
+    perm = np.random.default_rng(42).permutation(len(X))
+    Yp = {k: v[perm] for k, v in Y.items()}
+    null = cross_validate_spec(spec, X, Yp, 1, 5, 42, tune_threshold=False)
+    assert abs(fast_auc(Yp["CAD"], null["oof"]["CAD"][0]) - 0.5) < 0.12
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(ROOT, "dashboard", "data", "model.json")), reason="run export_model.py first")
+def test_exported_model_reproduces_sklearn(data):
+    _, X, Y = data
+    m = json.load(open(os.path.join(ROOT, "dashboard", "data", "model.json")))
+    t = m["tasks"]["CAD"]
+    z = t["intercept"] + ((X.values - t["mean"]) / t["scale"]) @ np.array(t["coef"])
+    ref = fit_lr(X, Y, 42, tasks=["CAD"]).predict(X)["CAD"]
+    assert np.allclose(1 / (1 + np.exp(-z)), ref, atol=1e-6)
+
+
+def test_dashboard_assets_exist():
+    for f in ["index.html", "app.js", "styles.css", "lib/three.module.js", "lib/three.core.js",
+              "lib/OrbitControls.js", "assets/logo.svg"]:
+        assert os.path.exists(os.path.join(ROOT, "dashboard", f)), f
+
+
+# ---------------------------------------------------------------- multi-centre bedside model
+from src.harmonize import BEDSIDE_FEATURES, SITES, bedside_matrix, load_harmonised, training_medians
+
+
+def test_harmonised_sites_and_labels():
+    df = load_harmonised()
+    assert list(df["site"].unique()) == SITES
+    assert df.groupby("site").size().to_dict() == {"Tehran": 303, "Cleveland": 303, "Budapest": 294, "Zurich": 123, "Long Beach": 200}
+    assert set(df["cad"].unique()) == {0, 1}
+    # chest-pain categories are mutually exclusive
+    assert ((df["cp_typical"] + df["cp_atypical"] + df["cp_nonanginal"]) <= 1).all()
+
+
+def test_bedside_matrix_imputes_with_training_medians_only():
+    df = load_harmonised()
+    train, test = df[df["site"] != "Long Beach"], df[df["site"] == "Long Beach"]
+    med = training_medians(train)
+    Xt = bedside_matrix(test, med)
+    assert list(Xt.columns) == BEDSIDE_FEATURES and not Xt.isnull().any().any()
+    miss = test["sbp"].isna().values
+    assert miss.sum() > 0 and (Xt["sbp"].values[miss] == med["sbp"]).all() and (Xt["sbp_missing"].values[miss] == 1).all()
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(ROOT, "dashboard", "data", "bedside.json")), reason="run export_model.py first")
+def test_exported_bedside_model_matches_python():
+    from src.external import BedsideLR
+    df = load_harmonised()
+    b = json.load(open(os.path.join(ROOT, "dashboard", "data", "bedside.json")))
+    X = bedside_matrix(df, b["medians"]).values
+    z = b["intercept"] + ((X - b["mean"]) / b["scale"]) @ np.array(b["coef"])
+    assert np.allclose(1 / (1 + np.exp(-z)), BedsideLR().fit(df, 42).predict(df), atol=1e-6)

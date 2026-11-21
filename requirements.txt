@@ -1,0 +1,8 @@
+# Tested with Python 3.14, see reports/eval/results.json for the exact versions of a run.
+numpy>=2.0
+pandas>=2.2
+scipy>=1.13
+scikit-learn>=1.8
+matplotlib>=3.8
+torch>=2.2          # only for the multitask neural-net comparison (skip with: python evaluate.py --quick)
+pytest>=8

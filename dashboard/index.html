@@ -4,158 +4,301 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>CardioAI 3D Spatial Intelligence</title>
+<title>CardioAI</title>
+<meta name="description" content="Which cath-lab referrals will have a normal angiogram? A validated, explainable risk model with a 3D coronary view.">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 <script type="importmap">{"imports":{"three":"./lib/three.module.js"}}</script>
 </head>
 <body>
+<div class="orbs" aria-hidden="true"><i class="orb orb--ruby"></i><i class="orb orb--purple"></i></div>
 
-<!-- Ambient canvas -->
-<div class="orbs" aria-hidden="true"><i class="orb orb--ruby"></i><i class="orb orb--purple"></i><i class="orb orb--indigo"></i></div>
-<div class="pixel-grid" aria-hidden="true"></div>
-
-<!-- Fixed 3D canvas (Step 3 mounts Three.js here) -->
-<div id="scene" class="scene" aria-hidden="true"></div>
-
-<!-- Decorative telemetry overlay -->
-<svg class="telemetry" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false">
-  <g fill="none" stroke="currentColor">
-    <circle cx="500" cy="500" r="440" stroke-width="1" opacity=".55"/>
-    <path d="M500 44v32M500 924v32M44 500h32M924 500h32" stroke-width="1.5"/>
-    <circle class="ring ring--mid" cx="500" cy="500" r="370" stroke-width="1.25" stroke-dasharray="48 12 16 12"/>
-    <circle class="ring ring--in" cx="500" cy="500" r="300" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round"/>
-  </g>
-</svg>
-
-<!-- Floating navbar -->
-<header class="nav glass" role="banner">
-  <div class="nav__brand">
-    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-    <span>CardioAI <small>3D Spatial Intelligence</small></span>
-  </div>
-  <nav class="nav__patients" aria-label="Patient cases">
-    <div class="seg" role="tablist" id="patient-tabs">
-      <button class="seg__btn pressable" role="tab" aria-selected="true" data-patient="1">Patient 1</button>
-      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="2">Patient 2</button>
-      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="3">Patient 3</button>
-      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="4">Patient 4</button>
-      <button class="seg__btn pressable" role="tab" aria-selected="false" data-patient="5">Patient 5</button>
-    </div>
+<header class="nav glass">
+  <a class="brand" href="#patient" aria-label="CardioAI home">
+    <img src="assets/logo.svg" width="32" height="32" alt="">
+    <span>CardioAI<small>Pre-angiography triage</small></span>
+  </a>
+  <nav class="seg" role="tablist" aria-label="Views">
+    <button class="seg__btn" role="tab" data-tab="patient" aria-selected="true">Patient</button>
+    <button class="seg__btn" role="tab" data-tab="evidence" aria-selected="false">Evidence</button>
+    <button class="seg__btn" role="tab" data-tab="about" aria-selected="false">About &amp; limits</button>
   </nav>
-  <div class="nav__status"><span class="dot dot--ok"></span><span>Model integrity: zero leakage</span></div>
+  <button class="nav__status" id="nav-status" data-goto="evidence" title="Open the evaluation">
+    <span class="dot"></span><span id="nav-status-text">Loading evaluation…</span>
+  </button>
 </header>
 
-<!-- 3-column spatial HUD -->
-<main class="hud">
+<!-- ============================== PATIENT VIEW ============================== -->
+<main id="view-patient" class="view view--patient" role="tabpanel">
+  <aside class="col col--left" aria-label="Input">
+    <section class="panel glass">
+      <div class="seg seg--full" role="tablist" aria-label="Model">
+        <button class="seg__btn" data-mode="full" aria-selected="true" title="55 inputs incl. ECG, labs and echo. Internally validated on 303 patients (Tehran).">Full workup<small>55 inputs</small></button>
+        <button class="seg__btn" data-mode="bedside" aria-selected="false" title="7 inputs. Trained on 1,223 patients from 5 hospitals, validated leave-one-hospital-out.">Bedside<small>7 inputs · 5 hospitals</small></button>
+      </div>
+      <p class="muted" id="mode-note"></p>
+    </section>
 
-  <!-- Left: patient and physiology -->
-  <aside class="col col--left" aria-label="Patient physiology">
-    <section class="panel glass tilt" id="panel-patient">
-      <h2 class="panel__title">Patient</h2>
-      <p class="patient-id num" id="patient-id">Patient 1</p>
-      <p class="muted">Catheterization-grounded case</p>
+    <section class="panel glass">
+      <h2 class="step"><b>1</b> Choose a patient</h2>
+      <div class="cases" id="cases" role="listbox" aria-label="Featured cases"></div>
+      <label class="select">
+        <span class="muted" id="select-label">or any of the 303 patients</span>
+        <select id="patient-select"></select>
+      </label>
     </section>
-    <section class="panel glass tilt" id="panel-ecg">
-      <div class="panel__head"><h2 class="panel__title">Lead II telemetry</h2><span class="badge" id="ecg-badge" data-level="ok">Normal Sinus Rhythm</span></div>
-      <div class="ecg"><canvas id="ecg-canvas" role="img" aria-label="Simulated lead II electrocardiogram"></canvas></div>
-      <dl class="ecg__read num">
-        <div><dt>Heart rate</dt><dd id="ecg-hr">— bpm</dd></div><div><dt>ST level</dt><dd id="ecg-st">— mm</dd></div>
-        <div><dt>Sweep</dt><dd>25 mm/s</dd></div><div><dt>Calibration</dt><dd>10 mm/mV</dd></div>
-      </dl>
-      <p class="muted">Schematic waveform. ST level is taken from the model attribution, not from a recording.</p>
+
+    <section class="panel glass">
+      <div class="panel__head">
+        <h2 class="step"><b>2</b> Inputs <span class="muted" id="edit-state">recorded values</span></h2>
+        <button class="chip" id="reset" type="button">Reset</button>
+      </div>
+      <p class="muted">Change any value to see what the model does. Strongest inputs first.</p>
+      <div id="inputs-top" class="inputs"></div>
+      <details class="more" id="more">
+        <summary>All 55 inputs</summary>
+        <div id="inputs-all"></div>
+      </details>
     </section>
-    <section class="panel glass tilt" id="panel-biomarkers">
-      <h2 class="panel__title">Clinical measurements</h2>
-      <table class="metrics num">
-        <tbody id="biomarker-rows">
-          <tr data-key="Age"><th>Age</th><td>—</td><td class="unit">years</td></tr>
-          <tr data-key="BP"><th>Blood pressure</th><td>—</td><td class="unit">mmHg</td></tr>
-          <tr data-key="HR"><th>Heart rate</th><td>—</td><td class="unit">bpm</td></tr>
-          <tr data-key="EF-TTE"><th>Ejection fraction</th><td>—</td><td class="unit">%</td></tr>
-          <tr data-key="Region_RWMA"><th>Wall motion (RWMA)</th><td>—</td><td class="unit">regions</td></tr>
-          <tr data-key="Typical_Chest_Pain"><th>Typical chest pain</th><td>—</td><td class="unit"></td></tr>
-          <tr data-key="DM"><th>Diabetes</th><td>—</td><td class="unit"></td></tr>
-          <tr data-key="TG"><th>Triglycerides</th><td>—</td><td class="unit">mg/dL</td></tr>
-          <tr data-key="ESR"><th>ESR</th><td>—</td><td class="unit">mm/h</td></tr>
-        </tbody>
-      </table>
+
+    <section class="panel glass" id="panel-ecg">
+      <div class="panel__head"><h2 class="panel__title">ECG findings</h2><span class="badge" id="ecg-badge">—</span></div>
+      <div class="ecg"><canvas id="ecg-canvas" role="img" aria-label="Schematic ECG beat drawn from the recorded ECG findings"></canvas></div>
+      <p class="muted">Schematic beat drawn from this patient's recorded findings (<span id="ecg-findings">—</span>). Not a recording.</p>
     </section>
   </aside>
 
-  <!-- Center: 3D heart viewport -->
-  <section class="viewport" aria-label="3D heart viewport">
-    <span class="reticle reticle--tl" aria-hidden="true"></span><span class="reticle reticle--tr" aria-hidden="true"></span>
-    <span class="reticle reticle--bl" aria-hidden="true"></span><span class="reticle reticle--br" aria-hidden="true"></span>
-
+  <section class="viewport" aria-label="3D coronary view">
+    <div id="scene" class="scene"></div>
+    <div class="vessel-labels" id="vessel-labels" aria-hidden="true"></div>
     <div class="viewport__top">
-      <div class="risk-chip glass" id="risk-chip" data-level="ok">
-        <span class="muted">CAD risk</span>
-        <strong class="num risk-chip__value" id="cad-risk">—%</strong>
+      <div class="risk-chip glass" id="risk-chip">
+        <span class="muted">Probability of CAD</span>
+        <strong class="num" id="cad-risk">—</strong>
       </div>
     </div>
-
-    <div class="vessel-labels" id="vessel-labels" aria-hidden="true"></div>
-
-    <div class="dock glass" role="toolbar" aria-label="Heart view controls">
-      <button class="dock__btn pressable" data-view="anterior">Anterior</button>
-      <button class="dock__btn pressable" data-view="posterior">Posterior</button>
-      <button class="dock__btn pressable" data-view="vessels">Vessels</button>
-      <button class="dock__btn pressable" data-layer="shell" aria-pressed="true">Glass shell</button>
-      <button class="dock__btn pressable" data-layer="flow" aria-pressed="true">Flow</button>
+    <div class="legend glass" aria-hidden="true">
+      <span><i style="--c:var(--ok)"></i>&lt; 40%</span><span><i style="--c:var(--mid)"></i>40–65%</span><span><i style="--c:var(--high)"></i>&gt; 65%</span>
+      <span class="muted">vessel stenosis probability</span>
     </div>
+    <div class="dock glass" role="toolbar" aria-label="3D view controls">
+      <button class="dock__btn" data-view="anterior">Front</button>
+      <button class="dock__btn" data-view="posterior">Back</button>
+      <button class="dock__btn" data-view="vessels">Oblique</button>
+      <button class="dock__btn" data-layer="shell" aria-pressed="true">Heart shell</button>
+      <button class="dock__btn" data-layer="spin" aria-pressed="true">Auto-rotate</button>
+    </div>
+    <p class="webgl-fallback muted" id="webgl-fallback" hidden>3D view unavailable on this device (WebGL is off). All results are in the side panels.</p>
   </section>
 
-  <!-- Right: predictions and explainability -->
-  <aside class="col col--right" aria-label="Predictions and explainability">
-    <section class="panel glass tilt" id="panel-cad" data-level="ok">
-      <h2 class="panel__title">CAD status</h2>
-      <div class="cad"><strong class="num cad__pct" id="cad-card-pct">—%</strong><div><p id="cad-status">—</p><p class="muted" id="cad-sev"></p></div></div>
-    </section>
-    <section class="panel glass tilt" id="panel-vessels">
-      <h2 class="panel__title">Coronary vessel telemetry</h2>
-      <div class="vcards" id="vessel-cards">
-      <article class="vcard" data-vessel="LAD" data-level="ok">
-        <header><h3>LAD <small class="muted">Left anterior descending</small></h3><strong class="num vcard__pct">—%</strong></header>
-        <p class="vcard__status">—</p><p class="muted vcard__sev"></p>
-        <button class="chip pressable vcard__focus" type="button">Focus camera</button>
-      </article>
-      <article class="vcard" data-vessel="LCX" data-level="ok">
-        <header><h3>LCX <small class="muted">Left circumflex</small></h3><strong class="num vcard__pct">—%</strong></header>
-        <p class="vcard__status">—</p><p class="muted vcard__sev"></p>
-        <button class="chip pressable vcard__focus" type="button">Focus camera</button>
-      </article>
-      <article class="vcard" data-vessel="RCA" data-level="ok">
-        <header><h3>RCA <small class="muted">Right coronary</small></h3><strong class="num vcard__pct">—%</strong></header>
-        <p class="vcard__status">—</p><p class="muted vcard__sev"></p>
-        <button class="chip pressable vcard__focus" type="button">Focus camera</button>
-      </article>
+  <aside class="col col--right" aria-label="Result">
+    <section class="panel glass result" id="panel-result">
+      <h2 class="step"><b>3</b> Result</h2>
+      <div class="result__main">
+        <strong class="num result__pct" id="res-pct">—</strong>
+        <div>
+          <p class="decision" id="res-decision">—</p>
+          <p class="muted" id="res-source">—</p>
+        </div>
+      </div>
+      <div class="meter" aria-hidden="true"><div class="meter__bar"><i id="meter-fill"></i><b id="meter-thr"></b></div>
+        <div class="meter__scale muted"><span>0%</span><span id="meter-thr-label">rule-out line</span><span>100%</span></div></div>
+      <p class="muted" id="res-range"></p>
+      <p class="warn" id="res-warn" hidden></p>
+      <dl class="compare">
+        <div><dt>ESC 2019 guideline estimate</dt><dd class="num" id="res-esc">—</dd></div>
+        <div><dt>Angiography result (ground truth)</dt><dd id="res-truth">—</dd></div>
+      </dl>
+      <p class="verdict" id="res-verdict" hidden></p>
+      <div class="actions">
+        <button class="chip" id="btn-print" type="button">Print / save report</button>
+        <button class="chip" id="btn-batch" type="button">Score a patient list (CSV)</button>
       </div>
     </section>
-    <section class="panel glass tilt" id="panel-shap">
-      <h2 class="panel__title">TreeSHAP attribution waterfall</h2>
-      <div class="seg seg--small" role="tablist"><button class="seg__btn pressable" aria-selected="true">TreeSHAP</button><button class="seg__btn pressable" aria-selected="false">LIME</button></div>
-      <ul class="shap" id="shap-list"></ul>
+
+    <section class="panel glass" id="panel-vessels">
+      <h2 class="panel__title">Which artery? <span class="muted">≥50% narrowing</span></h2>
+      <div class="vcards" id="vessel-cards">
+        <article class="vcard" data-vessel="LAD"><header><h3>LAD <small class="muted">left anterior descending</small></h3><strong class="num vcard__pct">—</strong></header><p class="vcard__truth muted">—</p></article>
+        <article class="vcard" data-vessel="LCX"><header><h3>LCX <small class="muted">left circumflex</small></h3><strong class="num vcard__pct">—</strong></header><p class="vcard__truth muted">—</p></article>
+        <article class="vcard" data-vessel="RCA"><header><h3>RCA <small class="muted">right coronary</small></h3><strong class="num vcard__pct">—</strong></header><p class="vcard__truth muted">—</p></article>
+      </div>
+      <p class="muted">Vessel-level accuracy is much lower than CAD-level (AUROC ≈ <span id="vessel-auc">—</span>). Treat as a hint, not a localisation.</p>
     </section>
-    <section class="panel glass tilt" id="panel-whatif">
-      <div class="panel__head"><h2 class="panel__title">What-if simulator</h2><button class="chip pressable" id="whatif-reset">Reset</button></div>
-      <div class="field"><label for="w-age">Age <output class="num" for="w-age">60</output></label><input id="w-age" type="range" min="20" max="90" value="60"></div>
-      <div class="field"><label for="w-ef">Ejection fraction <output class="num" for="w-ef">50</output></label><input id="w-ef" type="range" min="15" max="70" value="50"></div>
-      <div class="field"><label for="w-rwma">Wall motion regions <output class="num" for="w-rwma">0</output></label><input id="w-rwma" type="range" min="0" max="4" value="0"></div>
-      <div class="field"><label for="w-bp">Blood pressure <output class="num" for="w-bp">120</output></label><input id="w-bp" type="range" min="80" max="220" value="120"></div>
-      <div class="field"><label for="w-tg">Triglycerides <output class="num" for="w-tg">150</output></label><input id="w-tg" type="range" min="50" max="500" value="150"></div>
-      <div class="field"><label for="w-esr">ESR <output class="num" for="w-esr">20</output></label><input id="w-esr" type="range" min="1" max="100" value="20"></div>
-      <div class="field field--switch"><label for="w-cp">Typical chest pain</label><input id="w-cp" type="checkbox" role="switch"></div>
-      <div class="field field--switch"><label for="w-dm">Diabetes</label><input id="w-dm" type="checkbox" role="switch"></div>
-      <p class="delta num" id="whatif-delta">Change vs. baseline: 0.0 pts</p>
+
+    <section class="panel glass">
+      <h2 class="panel__title">Why this score</h2>
+      <p class="muted">Exact contribution of each input to the CAD log-odds, compared with an average patient in the cohort.</p>
+      <ul class="contrib" id="contrib"></ul>
+      <p class="contrib__legend muted"><span><i class="sw sw--up"></i>raises risk</span><span><i class="sw sw--down"></i>lowers risk</span></p>
     </section>
   </aside>
 </main>
 
-<!-- Safety disclaimer -->
-<button class="disclaimer pressable" id="disclaimer" aria-expanded="false" aria-controls="disclaimer-text">
-  <span aria-hidden="true">⚠️</span> <strong>Safety Disclaimer</strong>
-  <span class="disclaimer__text" id="disclaimer-text">Decision support only. Not a diagnosis. Simulated values are not measurements.</span>
+<!-- ============================== EVIDENCE VIEW ============================== -->
+<main id="view-evidence" class="view view--page" role="tabpanel" hidden>
+  <div class="page">
+    <header class="page__head">
+      <h1>Does it work? What we measured</h1>
+      <p class="lede">Every number below is <b>out-of-fold</b>: each patient was scored by a model that never saw them. The protocol was 5 repeats of stratified 5-fold cross-validation on 303 patients, seed 42. 95% confidence intervals come from a patient-level bootstrap. Rerun it with <code>python evaluate.py</code>.</p>
+    </header>
+
+    <div class="tiles" id="tiles"></div>
+
+    <section class="card glass">
+      <h2>Trade-off: angiograms avoided vs. CAD missed</h2>
+      <p class="muted">Patients scoring below the threshold would be "low risk, consider deferring angiography". Drag the slider. Lower-left is safer, higher is more useful. <b>No threshold misses zero CAD patients and still avoids many normal angiograms.</b></p>
+      <div class="chart" id="tradeoff-chart"></div>
+      <div class="slider-row">
+        <label for="thr">Threshold <output id="thr-out" class="num">—</output></label>
+        <input id="thr" type="range" min="0" max="1" step="0.01">
+      </div>
+      <div class="readout num" id="thr-readout"></div>
+    </section>
+
+    <section class="card glass">
+      <h2>Does it work in a hospital it has never seen?</h2>
+      <p class="muted">Bedside model (7 inputs available everywhere), trained on 4 hospitals and tested on the 5th, for each hospital in turn. 1,223 patients, 4 countries, all labelled by angiography. Dot = bedside model, ring = ESC 2019 table, whisker = 95% CI.</p>
+      <div class="chart" id="external-chart"></div>
+      <div class="table-wrap"><table class="tbl" id="tbl-external"></table></div>
+      <p class="muted" id="external-note"></p>
+    </section>
+
+    <section class="card glass">
+      <h2>How many local patients does a new hospital need?</h2>
+      <p class="muted">Add k labelled local patients to the other hospitals' training data, refit, and test on the rest of that hospital. Mean AUROC over 20 random draws (10th–90th percentile).</p>
+      <div class="table-wrap"><table class="tbl" id="tbl-adapt"></table></div>
+    </section>
+
+    <section class="card glass">
+      <h2>Model comparison: CAD (any artery ≥50% narrowed)</h2>
+      <p class="muted">The rule-out threshold is chosen inside each training fold to keep sensitivity ≥95%, then frozen and applied to the test fold. Bold row = the model this dashboard runs.</p>
+      <div class="table-wrap"><table class="tbl" id="tbl-models"></table></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card glass">
+        <h2>Which tests does it need?</h2>
+        <p class="muted">Logistic regression retrained with only the inputs available in each setting. Bars show AUROC, whiskers the 95% CI.</p>
+        <div class="chart" id="ablation-chart"></div>
+      </section>
+      <section class="card glass">
+        <h2>Does it hold up in subgroups?</h2>
+        <p class="muted">AUROC of the deployed model (dot) vs. the ESC guideline table (ring), each patient scored out-of-fold.</p>
+        <div class="chart" id="subgroup-chart"></div>
+      </section>
+    </div>
+
+    <section class="card glass">
+      <h2>Which artery? Vessel-level AUROC</h2>
+      <div class="table-wrap"><table class="tbl" id="tbl-vessels"></table></div>
+      <p class="muted">LCX and RCA are only moderately predictable from clinical data. The original multitask neural network (the first version of this project) scored lower than simple models on every target. We report it rather than hide it.</p>
+    </section>
+
+    <section class="card glass">
+      <h2>Calibration and sanity checks</h2>
+      <div class="grid2 grid2--tight">
+        <figure><img src="figures/calibration_cad.png" alt="Calibration plot: predicted vs observed CAD fraction" loading="lazy"><figcaption class="muted">Logistic regression tracks the diagonal. The ESC table under-estimates badly in this cath-referred population (71% prevalence vs. ~15–30% in the cohorts it was derived from).</figcaption></figure>
+        <ul class="checks" id="checks"></ul>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ============================== ABOUT VIEW ============================== -->
+<main id="view-about" class="view view--page" role="tabpanel" hidden>
+  <div class="page prose">
+    <header class="page__head">
+      <h1>The problem, and the limits</h1>
+      <p class="lede">Invasive coronary angiography is the reference test for coronary artery disease. It needs a cath lab, contrast and arterial access. In this cohort, <b>29% of referred patients had a normal angiogram</b>. CardioAI asks whether routine clinical data can spot those patients before the procedure, and say how sure it is.</p>
+    </header>
+
+    <section class="card glass">
+      <h2>How it works</h2>
+      <ol class="flow">
+        <li><b>Input</b><span>55 routine values: history, symptoms, exam, 12-lead ECG findings, blood tests, echocardiogram.</span></li>
+        <li><b>Model</b><span>Four standardised L2 logistic regressions (CAD, LAD, LCX, RCA). They run in your browser, so the contributions shown are exact.</span></li>
+        <li><b>Decision</b><span>Below a threshold tuned for ≥95% sensitivity: "low risk, discuss deferring angiography". Otherwise: "refer".</span></li>
+        <li><b>Check</b><span>Every case shows the guideline estimate and the real angiography result, including the cases the model got wrong.</span></li>
+      </ol>
+    </section>
+
+    <div class="grid2">
+      <section class="card glass">
+        <h2>Who benefits</h2>
+        <ul>
+          <li><b>Patients with a normal angiogram</b> could avoid an invasive procedure, contrast exposure and access-site complications.</li>
+          <li><b>Busy cath labs and cardiologists</b> get a consistent, explainable second look when prioritising a waiting list.</li>
+          <li><b>Clinics without a cardiologist or echo</b>: the 7-input bedside model needs only history, blood pressure, a glucose test and a resting ECG. Its accuracy in a new hospital is lower and varies (AUROC <span data-fill="loso-range">0.68–0.82</span>), so it should be checked locally before use.</li>
+        </ul>
+      </section>
+      <section class="card glass">
+        <h2>Who could be harmed</h2>
+        <ul>
+          <li><b>Patients falsely called low risk.</b> At the ≥95% sensitivity setting, about <span data-fill="missed">4</span> of every 100 referred patients have CAD and are still labelled low risk. Roughly 1 in 5 "low risk" labels is wrong (NPV ≈ <span data-fill="npv">0.8</span>). A missed lesion can mean a missed heart attack.</li>
+          <li><b>Hospitals unlike the training data.</b> The full model was built in one Tehran hospital and has never been tested elsewhere. The bedside model was tested in 5 hospitals. It failed to transfer to Tehran: 'no chest pain' meant low risk there but high risk at the US/European sites.</li>
+          <li><b>Over-trust.</b> A polished 3D view can look more certain than the evidence is. The vessel view is the weakest part.</li>
+        </ul>
+      </section>
+    </div>
+
+    <section class="card glass">
+      <h2>Limitations: when these results stop being useful</h2>
+      <ul>
+        <li><b>Small and single-centre:</b> 303 patients from one hospital (Tehran), with no external validation. CIs are wide, and every result is internal cross-validation only.</li>
+        <li><b>Referral population only:</b> every patient was already sent for angiography (CAD prevalence 71%). Scores do not transfer to screening, primary care or emergency chest pain, where prevalence is far lower.</li>
+        <li><b>Spectrum and label definition:</b> "CAD" means at least one vessel with ≥50% narrowing. That says nothing about functional significance (FFR), plaque burden or acute coronary syndrome.</li>
+        <li><b>Model selection after the fact:</b> all well-tuned models scored AUROC 0.92 ± 0.01, and an 11-variable bedside model did as well. We chose the all-input logistic regression after seeing CV results (for calibration and exact explanations), which is mildly optimistic.</li>
+        <li><b>Missing inputs:</b> the model needs all 55 values. Dropping echo and labs cost little in this cohort, but that may not transfer.</li>
+        <li><b>The ESC table was not built for this population.</b> We use it as a ranking reference and set its threshold the same way, but its absolute values are badly mis-calibrated here.</li>
+        <li><b>What-if editing is associational.</b> Changing an input shows how the model's score responds. It does not show what would happen to the patient if that factor changed.</li>
+        <li><b>Not a medical device.</b> This is research software. It has no regulatory clearance and must not be used for real patients.</li>
+      </ul>
+    </section>
+
+    <section class="card glass">
+      <h2>With another month</h2>
+      <ul>
+        <li>External validation on a second public cohort (e.g. the UCI Cleveland/Hungarian/Swiss heart-disease sets, with harmonised features).</li>
+        <li>Decision-curve analysis and a cost model (angiography cost vs. cost of a missed lesion).</li>
+        <li>Prospective "silent mode" logging at a partner cath lab to measure real referral patterns.</li>
+        <li>A plain-language patient view, and an accessibility audit with clinicians.</li>
+      </ul>
+    </section>
+
+    <section class="card glass">
+      <h2>Attribution</h2>
+      <ul>
+        <li><b>Data:</b> Z-Alizadeh Sani dataset extension, UCI Machine Learning Repository (ID 411). Alizadehsani R. et al., CC BY 4.0.</li>
+        <li><b>Guideline baseline:</b> 2019 ESC Guidelines for chronic coronary syndromes, Table 5 pre-test probabilities (Knuuti J. et al., <i>Eur Heart J</i> 2020;41:407–477).</li>
+        <li><b>Libraries:</b> three.js (MIT) for 3D, scikit-learn, PyTorch, pandas, NumPy, SciPy, matplotlib.</li>
+        <li>The 3D heart is a procedural, schematic model. It is not patient imaging.</li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<button class="disclaimer" id="disclaimer" type="button">
+  <span aria-hidden="true">⚠</span> <strong>Research prototype</strong><span class="disclaimer__text">Not for clinical use</span>
 </button>
+
+<div id="report" class="report" aria-hidden="true"></div>
+
+<dialog class="modal modal--wide" id="batch">
+  <div class="modal__body glass">
+    <div class="panel__head"><h2>Score a patient list</h2><form method="dialog"><button class="chip" aria-label="Close">Close</button></form></div>
+    <p class="muted">Upload a CSV and every row is scored in your browser. <b>The file never leaves this device.</b> Use the template so the column names match.</p>
+    <div class="batch__row">
+      <label class="select"><span class="muted">Model</span>
+        <select id="batch-model"><option value="bedside">Bedside (7 inputs)</option><option value="full">Full workup (55 inputs)</option></select></label>
+      <button class="chip" id="batch-template" type="button">Download template</button>
+      <label class="chip file">Choose CSV…<input type="file" id="batch-file" accept=".csv,text/csv"></label>
+    </div>
+    <p class="muted" id="batch-status"></p>
+    <div class="table-wrap batch__table"><table class="tbl" id="batch-table"></table></div>
+    <button class="chip" id="batch-download" type="button" hidden>Download scored CSV</button>
+  </div>
+</dialog>
 
 <script type="module" src="app.js"></script>
 </body>

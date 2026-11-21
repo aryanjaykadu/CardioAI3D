@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+.venv/
+venv/
+reports/eval/full_run.log
+*.lnk

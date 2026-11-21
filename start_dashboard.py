@@ -1,16 +1,17 @@
 """
-Launch script for the 3D Web Clinical Decision Support Dashboard.
-Hosts the dashboard on a local HTTP server and automatically opens it in the browser.
+Serve the CardioAI dashboard locally (no build step, no internet needed).
+
+    python start_dashboard.py               # http://localhost:8080, opens your browser
+    python start_dashboard.py --port 9000 --no-browser
 """
 
+import argparse
 import http.server
+import os
 import socketserver
 import webbrowser
-import os
-import sys
 
-PORT = 8080
-DIRECTORY = os.path.join(os.path.dirname(__file__), "dashboard")
+DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard")
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -18,33 +19,36 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
 
     def end_headers(self):
-        # Enable CORS and caching headers
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         super().end_headers()
 
+    def log_message(self, fmt, *args):
+        pass  # keep the terminal quiet
 
-def run():
-    global PORT
-    while PORT < 8100:
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--no-browser", action="store_true")
+    args = ap.parse_args()
+    for port in range(args.port, args.port + 20):
         try:
-            with socketserver.TCPServer(("", PORT), Handler) as httpd:
-                url = f"http://localhost:{PORT}/index.html"
-                print("=" * 70)
-                print("CARDIOAI 3D - CLINICAL DECISION SUPPORT DASHBOARD")
-                print("=" * 70)
-                print(f"Serving dashboard at: {url}")
-                print("Opening web browser...")
-                webbrowser.open(url)
-                print("\nServer running. Press Ctrl+C to terminate.")
-                try:
-                    httpd.serve_forever()
-                except KeyboardInterrupt:
-                    print("\nServer stopped.")
-                    break
+            httpd = socketserver.TCPServer(("", port), Handler)
         except OSError:
-            PORT += 1
+            continue
+        url = f"http://localhost:{port}/"
+        print(f"CardioAI dashboard: {url}  (Ctrl+C to stop)", flush=True)
+        if not args.no_browser:
+            webbrowser.open(url)
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            httpd.server_close()
+        return
+    raise SystemExit(f"No free port in {args.port}-{args.port + 19}")
 
 
 if __name__ == "__main__":
-    run()
+    main()
