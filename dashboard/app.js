@@ -701,5 +701,18 @@ async function boot() {
   renderEvidence();
   liquidGlass('.tile', { scale: 30, bezel: 14 });
   setMode('full');
+  applyLinkParams();
+}
+
+// Shareable links: ?mode=bedside  ?case=1..5 (featured case)  ?patient=N (cohort row, 1-based)  ?sample=1 (open the CSV scorer with the sample file)  ?section=external
+function applyLinkParams() {
+  const q = new URLSearchParams(location.search);
+  if (q.get('mode') === 'bedside') setMode('bedside');
+  const c = parseInt(q.get('case'), 10), p = parseInt(q.get('patient'), 10);
+  if (c >= 1) { const b = $$('.case')[c - 1]; if (b) b.click(); }
+  else if (p >= 1 && p <= (mode === 'full' ? DATA.patients.length : BED.patients.length)) selectPatient(p - 1);
+  if (q.get('sample')) { $('#batch-model').value = mode; handleBatchFile(new File([sampleCSV(mode)], `sample_${mode}.csv`, { type: 'text/csv' })); }
+  const sec = { external: '#external-chart', tradeoff: '#tradeoff-chart', models: '#tbl-models' }[q.get('section')];
+  if (sec) { showTab('evidence'); setTimeout(() => { const el = $(sec); if (el) window.scrollTo(0, el.closest('.card').getBoundingClientRect().top + scrollY - 90); }, 400); }
 }
 boot();
