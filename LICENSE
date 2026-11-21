@@ -19,22 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
--------------------------------------------------------------------------------
-Third-party material in this repository (not covered by the MIT licence above
-unless stated):
-
-* data/z_alizadeh_sani_extended.csv and data/extention of Z-Alizadeh sani
-  dataset.xlsx: "Extension of Z-Alizadeh Sani dataset", UCI Machine Learning
-  Repository (ID 411), Alizadehsani R. et al. Licensed CC BY 4.0
-  (https://creativecommons.org/licenses/by/4.0/).
-* data/uci_heart/*: "Heart Disease", UCI Machine Learning Repository (ID 45),
-  Janosi A., Steinbrunn W., Pfisterer M., Detrano R. (1988). Licensed CC BY 4.0.
-* dashboard/lib/three.module.js, three.core.js, OrbitControls.js: three.js,
-  Copyright 2010-2026 Three.js Authors, MIT licence.
-* dashboard/liquid-glass.js adapts the technique of liquid-glass-react
-  (Copyright rdev, MIT licence) and shuding/liquid-glass.
-
-Medical disclaimer: CardioAI is research software. It is not a medical device,
-has no regulatory clearance, and must not be used to make decisions about
-real patients.

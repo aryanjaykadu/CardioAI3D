@@ -166,4 +166,4 @@ The logistic-regression and tree results are deterministic for a given scikit-le
 
 ## License
 
-Code is released under the [MIT License](LICENSE). The datasets keep their original CC BY 4.0 licences, and three.js is MIT (details in [LICENSE](LICENSE)). This is research software, not a medical device.
+Code is released under the [MIT License](LICENSE). The datasets keep their original CC BY 4.0 licences, and three.js is MIT (details in [NOTICE](NOTICE)). This is research software, not a medical device.
