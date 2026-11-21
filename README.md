@@ -163,3 +163,7 @@ The logistic-regression and tree results are deterministic for a given scikit-le
 * **Libraries:** [three.js](https://threejs.org) (MIT; `dashboard/lib/three.*.js` and `OrbitControls.js` are unmodified copies), scikit-learn, PyTorch, NumPy, pandas, SciPy, matplotlib, pytest.
 * **Liquid Glass effect** (`dashboard/liquid-glass.js`): a framework-free port of the SVG-displacement technique from [liquid-glass-react](https://github.com/rdev/liquid-glass-react) by rdev (MIT) and [shuding/liquid-glass](https://github.com/shuding/liquid-glass). The filter chain is the same: backdrop blur, then `feDisplacementMap`, three per-channel passes for chromatic aberration, and a screen blend. The displacement map is our own pixel-space rounded-rectangle SDF. Found via [awesome-liquid-glass](https://github.com/carolhsiaoo/awesome-liquid-glass) (CC0). Refraction renders only in Chromium browsers; Safari and Firefox, and users who prefer reduced transparency, get a plain blur.
 * **Code:** written by the author. The procedural 3D heart (signed-distance-field anatomy, `dashboard/heart.js`), ECG renderer and dashboard are original. The rounded-cone and ellipsoid distance functions follow Inigo Quilez's published formulas. AI coding assistants were used during development.
+
+## License
+
+Code is released under the [MIT License](LICENSE). The datasets keep their original CC BY 4.0 licences, and three.js is MIT (details in [LICENSE](LICENSE)). This is research software, not a medical device.
