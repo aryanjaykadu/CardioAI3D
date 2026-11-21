@@ -674,7 +674,8 @@ function initDisclaimer() {
 }
 
 async function boot() {
-  liquidGlass('.nav, .risk-chip, .dock, .legend, .disclaimer');
+  liquidGlass('.nav', { blur: 9, saturation: 160 }); // stronger frost: page text scrolls under the nav
+  liquidGlass('.risk-chip, .dock, .legend, .disclaimer');
   initDisclaimer();
   $$('[data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
   $('#nav-status').addEventListener('click', () => showTab('evidence'));
