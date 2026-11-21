@@ -34,6 +34,7 @@ let cur = null;           // selected patient (object) or null = new patient
 let S = {}, S0 = {};      // current and original input values (keyed by input spec key)
 let selected = null;      // highlighted vessel
 let specs = [];           // input specs for the active mode
+let uploadedId = null;    // id of a patient opened from an uploaded CSV
 const CP_OPTS = [[0, 'None / no chest pain'], [1, 'Typical angina'], [2, 'Atypical chest pain'], [3, 'Non-anginal chest pain']];
 
 /* ================================================================ models as linear predictors */
@@ -157,7 +158,7 @@ function buildInputs() {
           if (!commit) { setErr(`Allowed range ${sp.min}–${sp.max}`); return; }
           S[sp.key] = Math.min(sp.max, Math.max(sp.min, v));
         } else S[sp.key] = v;
-        setErr(''); if (unk) unk.checked = false; syncField(el); render();
+        setErr(''); if (unk) unk.checked = false; syncField(el); queueRender();
       };
       num.addEventListener('input', () => accept(num.value, false));
       num.addEventListener('change', () => accept(num.value, true));
@@ -241,6 +242,7 @@ function buildPatients() {
   $$('.case').forEach(b => b.addEventListener('click', () => selectPatient(+b.dataset.id)));
 }
 function selectPatient(id) {
+  uploadedId = null;
   cur = id < 0 ? null : (mode === 'full' ? DATA.patients[id] : BED.patients[id]);
   S0 = cur ? (mode === 'full' ? stateFromFull(cur.x) : stateFromBed(cur)) : blankState();
   S = { ...S0 }; selected = null;
@@ -263,17 +265,22 @@ function setMode(m) {
 }
 
 /* ================================================================ render result */
+let renderQueued = false;
+function queueRender() { // inputs fire many events per frame; draw once per frame
+  if (renderQueued) return; renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; render(); });
+}
 function render() {
   $$('.field.is-derived').forEach(syncField); // BMI / obesity follow weight and height
   const P = Object.fromEntries(M().tasks.map(t => [t, prob(t)]));
   const isEdit = cur && edited(), THR = M().thr(), low = P.CAD < THR;
   const level = low ? 'ok' : lvl(P.CAD);
-  $('#edit-state').textContent = !cur ? 'new patient' : isEdit ? 'edited (simulation)' : 'recorded values';
+  $('#edit-state').textContent = uploadedId ? `from your file: ${uploadedId}` : !cur ? 'your patient' : isEdit ? 'edited (simulation)' : 'recorded values';
   $('#risk-chip').dataset.level = level; $('#cad-risk').textContent = pct(P.CAD);
   $('#panel-result').dataset.level = level; $('#res-pct').textContent = pct(P.CAD);
   $('#res-decision').textContent = low ? 'Below rule-out line: low risk' : 'Above rule-out line: angiography as planned';
   const held = mode === 'full' ? 'the model never saw this patient' : `model trained without ${cur && cur.site}`;
-  $('#res-source').textContent = !cur ? 'Live model on the values you entered.'
+  $('#res-source').textContent = !cur ? (uploadedId ? `Live model on the values from your file (${uploadedId}).` : 'Live model on the values you entered.')
     : isEdit ? 'Simulated: held-out score shifted by the model’s response to your edits.'
     : `Held-out score: ${held}.`;
   const [lo, hi] = probRange('CAD', P.CAD);
@@ -341,10 +348,11 @@ function initECG() {
     return 0.15 * gs(u, -0.2, 0.035) - ecg.q * gs(u, -0.03 * W, 0.012 * W) + ecg.r * gs(u, 0, 0.014 * W) - 0.28 * gs(u, 0.03 * W, 0.014 * W)
       + ecg.st * (sg((u - 0.05 * W) / 0.01) - sg((u - 0.24) / 0.03)) + ecg.t * gs(u, 0.28, 0.06);
   };
-  let col = '#30d158', n0 = 0;
+  let col = '#30d158', n0 = 0, visible = true;
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(cv);
   const frame = now => {
     requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - last) / 1000); last = now; if (!w || document.hidden) return;
+    const dt = Math.min(0.05, (now - last) / 1000); last = now; if (!w || !visible || document.hidden) return;
     if (++n0 % 30 === 0) col = getComputedStyle($('#ecg-badge')).getPropertyValue('--c').trim() || '#30d158';
     ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0,0,0,0.06)'; ctx.fillRect(0, 0, w, h); ctx.globalCompositeOperation = 'source-over';
     const base = h * 0.6, n = Math.max(1, Math.ceil(SPEED * dt / 2)); let y = base;
@@ -425,39 +433,89 @@ function scoreRow(m, rec) { // -> {p, lo, hi, esc, errors[]}
   if (errs.length) return { errors: errs };
   const lin = m === 'bedside' ? BED : FULL.tasks.CAD, v = mod.vec(s), z = zLin(lin, v), p = sigm(z);
   const d = lin.boot.map(row => zBoot(lin, row, v) - z);
-  return { p, lo: sigm(z + quantile(d, 0.05)), hi: sigm(z + quantile(d, 0.95)), esc: mod.esc(s), errors: [] };
+  return { p, lo: sigm(z + quantile(d, 0.05)), hi: sigm(z + quantile(d, 0.95)), esc: mod.esc(s), errors: [], state: s };
+}
+function sampleCSV(m) { // real study patients, so anyone can try the flow without making a file
+  if (m === 'bedside') {
+    const cp = ['none', 'typical', 'atypical', 'nonanginal'], yn = v => v == null ? '' : v ? 'yes' : 'no', n = {};
+    const rows = BED.patients.filter((_, i) => i % 97 === 5).map(p => { n[p.site] = (n[p.site] || 0) + 1;
+      return [`${p.site}-${n[p.site]}`, p.age, p.male ? 'male' : 'female', cp[p.cp], p.sbp ?? '', yn(p.fbs), yn(p.stt), yn(p.lvh)]; });
+    return toCSV([BED_COLS, ...rows]);
+  }
+  const rows = DATA.patients.filter((_, i) => i % 37 === 3).map(p => [`Tehran-${p.row + 1}`, ...p.x.map((v, i) => FULL.features[i].key === 'Sex' ? (v ? 'male' : 'female') : v)]);
+  return toCSV([['patient_id', ...FULL.features.map(f => f.key)], ...rows]);
+}
+let batchOut = null, batchRes = [], batchModel = 'bedside';
+function openUploaded(i) {
+  const r = batchRes[i]; if (!r || !r.s.state) return;
+  $('#batch').close();
+  if (mode !== batchModel) setMode(batchModel);
+  cur = null; S0 = { ...r.s.state }; S = { ...S0 }; selected = null; uploadedId = r.id;
+  $('#patient-select').value = '-1'; $$('.case').forEach(b => b.setAttribute('aria-selected', 'false'));
+  syncAll(); render(); showTab('patient');
+}
+async function handleBatchFile(file) {
+  const fail = msg => { $('#batch-status').textContent = msg; $('#batch-table').innerHTML = ''; $('#batch-download').hidden = true; };
+  if (!$('#batch').open) $('#batch').showModal();
+  if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') return fail('Please choose a .csv file (in Excel: File > Save As > CSV).');
+  if (file.size > 5e6) return fail('File is larger than 5 MB. Split it into smaller files.');
+  const rows = parseCSV(await file.text());
+  if (rows.length < 2) return fail('No data rows found.');
+  const head = rows[0].map(h => h.trim());
+  const cols = { bedside: BED_COLS.slice(1), full: FULL.features.map(f => f.key) };
+  let m = $('#batch-model').value;
+  const other = m === 'bedside' ? 'full' : 'bedside';
+  if (cols[m].some(k => !head.includes(k)) && cols[other].every(k => head.includes(k))) { m = other; $('#batch-model').value = m; } // file matches the other model: switch automatically
+  const missing = cols[m].filter(k => !head.includes(k));
+  if (missing.length) return fail(`Missing columns: ${missing.slice(0, 8).join(', ')}${missing.length > 8 ? '…' : ''}. Download the template for the exact names.`);
+  const thr = m === 'bedside' ? BED.rule_out_threshold : FULL.rule_out_threshold; batchModel = m;
+  const out = batchOut = [['patient_id', 'p_cad', 'range_90_low', 'range_90_high', 'decision', 'esc_2019_ptp', 'problems']];
+  let ok = 0, bad = 0, low = 0;
+  const res = rows.slice(1).map((r, i) => {
+    const rec = Object.fromEntries(head.map((h, j) => [h, r[j]])), id = (rec.patient_id || '').trim() || `row ${i + 2}`, s = scoreRow(m, rec);
+    if (s.errors.length) { bad++; out.push([id, '', '', '', 'NOT SCORED', '', s.errors.join('; ')]); return { id, s }; }
+    ok++; const isLow = s.p < thr; low += isLow;
+    out.push([id, s.p.toFixed(4), s.lo.toFixed(4), s.hi.toFixed(4), isLow ? 'below rule-out line' : 'refer as planned', s.esc.toFixed(2), '']);
+    return { id, s, isLow };
+  });
+  $('#batch-status').innerHTML = `<b>${esc(file.name)}</b>: scored <b>${ok}</b> of ${res.length} rows${bad ? `, <b>${bad}</b> could not be scored (see the red notes)` : ''}. ${low} below the rule-out line (${pct(thr)}). Highest risk first. Click <b>Open</b> to see a patient on the heart with the explanation.`;
+  batchRes = res.filter(r => !r.s.errors.length).sort((a, b) => b.s.p - a.s.p).concat(res.filter(r => r.s.errors.length));
+  $('#batch-table').innerHTML = `<thead><tr><th>Patient</th><th>P(CAD)</th><th>90% range</th><th>Decision</th><th>ESC 2019</th><th></th></tr></thead><tbody>` +
+    batchRes.slice(0, 300).map((r, i) => r.s.errors.length ? `<tr><td>${esc(r.id)}</td><td class="bad" colspan="5">${esc(r.s.errors.join('; '))}</td></tr>`
+      : `<tr><td>${esc(r.id)}</td><td>${pct(r.s.p)}</td><td>${pct(r.s.lo)}–${pct(r.s.hi)}</td><td>${r.isLow ? 'below rule-out line' : 'refer as planned'}</td><td>${pct(r.s.esc)}</td><td><button class="chip" data-open="${i}" type="button">Open</button></td></tr>`).join('') +
+    (batchRes.length > 300 ? `<tr><td colspan="6" class="muted">Showing the first 300 rows. The downloaded CSV has all ${batchRes.length}.</td></tr>` : '') + '</tbody>';
+  $('#batch-download').hidden = false;
 }
 function initBatch() {
-  const dlg = $('#batch'); let out = null;
-  $('#btn-batch').addEventListener('click', () => { $('#batch-model').value = mode; dlg.showModal(); });
+  const dlg = $('#batch');
+  const openDlg = () => { $('#batch-model').value = mode; dlg.showModal(); };
+  $('#btn-batch').addEventListener('click', openDlg);
+  $('#btn-upload').addEventListener('click', openDlg);
   $('#batch-template').addEventListener('click', () => { const m = $('#batch-model').value; download(`cardioai_${m}_template.csv`, batchTemplate(m)); });
-  $('#batch-file').addEventListener('change', async e => {
-    const file = e.target.files[0]; if (!file) return;
-    const m = $('#batch-model').value, thr = m === 'bedside' ? BED.rule_out_threshold : FULL.rule_out_threshold;
-    const fail = msg => { $('#batch-status').textContent = msg; $('#batch-table').innerHTML = ''; $('#batch-download').hidden = true; e.target.value = ''; };
-    if (file.size > 5e6) return fail('File is larger than 5 MB. Split it into smaller files.');
-    const rows = parseCSV(await file.text());
-    if (rows.length < 2) return fail('No data rows found.');
-    const head = rows[0].map(h => h.trim()), need = m === 'bedside' ? BED_COLS.slice(1) : FULL.features.map(f => f.key);
-    const missing = need.filter(k => !head.includes(k));
-    if (missing.length) return fail(`Missing columns: ${missing.slice(0, 8).join(', ')}${missing.length > 8 ? '…' : ''}. Download the template for the exact names.`);
-    out = [['patient_id', 'p_cad', 'range_90_low', 'range_90_high', 'decision', 'esc_2019_ptp', 'problems']];
-    let ok = 0, bad = 0, low = 0;
-    const res = rows.slice(1).map((r, i) => {
-      const rec = Object.fromEntries(head.map((h, j) => [h, r[j]])), id = (rec.patient_id || '').trim() || `row ${i + 2}`, s = scoreRow(m, rec);
-      if (s.errors.length) { bad++; out.push([id, '', '', '', 'NOT SCORED', '', s.errors.join('; ')]); return { id, s }; }
-      ok++; const isLow = s.p < thr; low += isLow;
-      out.push([id, s.p.toFixed(4), s.lo.toFixed(4), s.hi.toFixed(4), isLow ? 'below rule-out line' : 'refer as planned', s.esc.toFixed(2), '']);
-      return { id, s, isLow };
-    });
-    $('#batch-status').innerHTML = `Scored <b>${ok}</b> of ${res.length} rows${bad ? `, <b>${bad}</b> could not be scored (see "problems")` : ''}. ${low} below the rule-out line (${pct(thr)}). Highest risk first.`;
-    const sorted = res.filter(r => !r.s.errors.length).sort((a, b) => b.s.p - a.s.p).concat(res.filter(r => r.s.errors.length));
-    $('#batch-table').innerHTML = `<thead><tr><th>Patient</th><th>P(CAD)</th><th>90% range</th><th>Decision</th><th>ESC 2019</th></tr></thead><tbody>` +
-      sorted.slice(0, 200).map(r => r.s.errors.length ? `<tr><td>${esc(r.id)}</td><td class="bad" colspan="4">${esc(r.s.errors.join('; '))}</td></tr>`
-        : `<tr><td>${esc(r.id)}</td><td>${pct(r.s.p)}</td><td>${pct(r.s.lo)}–${pct(r.s.hi)}</td><td>${r.isLow ? 'below rule-out line' : 'refer as planned'}</td><td>${pct(r.s.esc)}</td></tr>`).join('') + '</tbody>';
-    $('#batch-download').hidden = false; e.target.value = '';
+  $('#batch-sample').addEventListener('click', () => { const m = $('#batch-model').value; handleBatchFile(new File([sampleCSV(m)], `sample_${m}.csv`, { type: 'text/csv' })); });
+  $('#batch-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) handleBatchFile(f); });
+  $('#batch-table').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openUploaded(+b.dataset.open); });
+  $('#batch-download').addEventListener('click', () => batchOut && download('cardioai_scored.csv', toCSV(batchOut)));
+  // drop a CSV anywhere on the page
+  const dz = $('#dropzone'); let depth = 0;
+  const hasFile = e => [...((e.dataTransfer && e.dataTransfer.types) || [])].includes('Files');
+  addEventListener('dragenter', e => { if (!hasFile(e)) return; e.preventDefault(); depth++; dz.hidden = false; });
+  addEventListener('dragover', e => { if (hasFile(e)) e.preventDefault(); });
+  addEventListener('dragleave', e => { if (!hasFile(e)) return; if (--depth <= 0) { depth = 0; dz.hidden = true; } });
+  addEventListener('drop', e => {
+    if (!hasFile(e)) return; e.preventDefault(); depth = 0; dz.hidden = true;
+    const f = e.dataTransfer.files[0]; if (!f) return;
+    if (!dlg.open) $('#batch-model').value = mode;
+    handleBatchFile(f);
   });
-  $('#batch-download').addEventListener('click', () => out && download('cardioai_scored.csv', toCSV(out)));
+  // "Enter your own patient": blank form, focus the first input
+  $('#btn-own').addEventListener('click', () => {
+    selectPatient(-1);
+    const panel = $('#inputs-top').closest('.panel');
+    panel.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    const first = $('#inputs-top input, #inputs-top select'); if (first) first.focus({ preventScroll: true });
+    panel.classList.remove('flash'); void panel.offsetWidth; panel.classList.add('flash');
+  });
 }
 
 /* ================================================================ evidence charts (inline SVG) */

@@ -27,15 +27,17 @@ button { background: none; border: 0; cursor: pointer; }
 code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: .92em; padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.08); }
 
 .orbs { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
-.orb { position: absolute; border-radius: 50%; filter: blur(140px); opacity: .35; }
-.orb--ruby { width: 560px; height: 560px; background: #be123c; top: -200px; left: -160px; }
-.orb--purple { width: 600px; height: 600px; background: #5b21b6; bottom: -240px; right: -160px; }
+.orb { position: absolute; border-radius: 50%; opacity: .5; } /* soft gradients instead of filter: blur(140px), which is costly to composite */
+.orb--ruby { width: 900px; height: 900px; background: radial-gradient(closest-side, rgba(190,18,60,.55), rgba(190,18,60,0)); top: -420px; left: -380px; }
+.orb--purple { width: 960px; height: 960px; background: radial-gradient(closest-side, rgba(91,33,182,.55), rgba(91,33,182,0)); bottom: -460px; right: -380px; }
 
 .glass {
   position: relative; background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
-  -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
+  /* Panels sit over a static background, so an opaque tint looks the same as a live blur at a fraction of the cost.
+     Only the elements that float over moving content (.lg, see liquid-glass.js) sample their backdrop. */
+  background-color: rgba(17,14,26,.78);
   border: 1px solid var(--line); border-radius: var(--r-lg);
-  box-shadow: 0 16px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+  box-shadow: 0 8px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
 }
 
 /* ---------- nav ---------- */
@@ -272,6 +274,7 @@ figure img { width: 100%; border-radius: 12px; background: #fff; }
 
 /* ---------- Liquid Glass (see liquid-glass.js) ---------- */
 .lg { isolation: isolate; }
+.lg { background-color: transparent; -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%); }
 html.lg-enabled .lg { -webkit-backdrop-filter: none; backdrop-filter: none; background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.015)); }
 html.lg-enabled .disclaimer.lg { background: rgba(255,159,10,.09); }
 .lg-warp { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; z-index: -1; pointer-events: none; }
@@ -286,3 +289,18 @@ html:not(.lg-enabled) .lg-warp { display: none; }
 }
 @media (prefers-reduced-transparency: reduce) { .lg-shine { display: none; } }
 @media print { .lg-warp, .lg-shine { display: none !important; } }
+
+/* ---------- check-your-own + upload ---------- */
+.own { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.own__btn { display: grid; gap: 2px; text-align: left; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(255,92,122,.16), rgba(139,92,246,.16)); border: 1px solid rgba(255,255,255,.14); transition: background .2s, border-color .2s, transform .15s; }
+.own__btn:hover { border-color: rgba(255,255,255,.35); background: linear-gradient(135deg, rgba(255,92,122,.26), rgba(139,92,246,.26)); }
+.own__btn:active { transform: scale(.98); }
+.own__btn b { font-size: 13.5px; }
+.own__btn small { color: var(--muted); font-size: 11.5px; line-height: 1.3; }
+.chip--primary { background: linear-gradient(135deg, var(--ruby), var(--violet)); color: #fff; }
+.chip--primary:hover { filter: brightness(1.1); background: linear-gradient(135deg, var(--ruby), var(--violet)); }
+.dropzone { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(5,5,10,.7); border: 3px dashed rgba(255,255,255,.35); pointer-events: none; }
+.dropzone .glass { display: grid; gap: 6px; padding: 28px 36px; text-align: center; font-size: 18px; }
+@keyframes flash { 0% { box-shadow: 0 0 0 0 rgba(139,92,246,.7); } 100% { box-shadow: 0 0 0 14px rgba(139,92,246,0); } }
+.panel.flash { animation: flash .9s ease-out; }
+@media (max-width: 1280px) { .own { grid-template-columns: 1fr; } }

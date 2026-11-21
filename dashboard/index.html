@@ -40,7 +40,12 @@
     </section>
 
     <section class="panel glass">
-      <h2 class="step"><b>1</b> Choose a patient</h2>
+      <h2 class="step"><b>1</b> Check a patient</h2>
+      <div class="own">
+        <button class="own__btn" id="btn-own" type="button"><b>Enter your own patient</b><small>Type the values, see the result live</small></button>
+        <button class="own__btn" id="btn-upload" type="button"><b>Upload a CSV file</b><small>One or many patients · stays on your device</small></button>
+      </div>
+      <p class="muted">Or explore a real patient from the study, with their actual angiogram result:</p>
       <div class="cases" id="cases" role="listbox" aria-label="Featured cases"></div>
       <label class="select">
         <span class="muted" id="select-label">or any of the 303 patients</span>
@@ -283,16 +288,18 @@
 </button>
 
 <div id="report" class="report" aria-hidden="true"></div>
+<div class="dropzone" id="dropzone" hidden><div class="glass"><b>Drop your CSV to score it</b><span class="muted">Scored in your browser. Nothing is uploaded to a server.</span></div></div>
 
 <dialog class="modal modal--wide" id="batch">
   <div class="modal__body glass">
     <div class="panel__head"><h2>Score a patient list</h2><form method="dialog"><button class="chip" aria-label="Close">Close</button></form></div>
-    <p class="muted">Upload a CSV and every row is scored in your browser. <b>The file never leaves this device.</b> Use the template so the column names match.</p>
+    <p class="muted">Every row is scored in your browser. <b>The file never leaves this device.</b> Download the template so the column names match, or try the sample file first. You can also drop a CSV anywhere on the page.</p>
     <div class="batch__row">
       <label class="select"><span class="muted">Model</span>
         <select id="batch-model"><option value="bedside">Bedside (7 inputs)</option><option value="full">Full workup (55 inputs)</option></select></label>
       <button class="chip" id="batch-template" type="button">Download template</button>
-      <label class="chip file">Choose CSV…<input type="file" id="batch-file" accept=".csv,text/csv"></label>
+      <button class="chip" id="batch-sample" type="button">Try a sample file</button>
+      <label class="chip chip--primary file">Choose CSV…<input type="file" id="batch-file" accept=".csv,text/csv"></label>
     </div>
     <p class="muted" id="batch-status"></p>
     <div class="table-wrap batch__table"><table class="tbl" id="batch-table"></table></div>

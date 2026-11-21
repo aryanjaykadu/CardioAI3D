@@ -53,7 +53,7 @@ function sdfNormal(p) { const e = 0.004; return v3(sdf(v3(p.x + e, p.y, p.z)) - 
 const hash = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s); };
 
 function buildMyocardium() {
-  const g = new THREE.SphereGeometry(1, 220, 160), pos = g.attributes.position, n = pos.count;
+  const g = new THREE.SphereGeometry(1, 176, 128), pos = g.attributes.position, n = pos.count;
   const nrm = new Float32Array(n * 3), col = new Float32Array(n * 3);
   const muscle = new THREE.Color('#9c2234'), muscleDark = new THREE.Color('#5e1220'), fat = new THREE.Color('#d9b45e'), tmp = new THREE.Color();
   const dir = new THREE.Vector3();
@@ -119,8 +119,10 @@ const VSH = {
 
 /* ------------------------------------------------------------------ scene */
 export function initHeart({ host, labelsHost, reduced, getHR }) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  // Adaptive resolution: start at <=1.5x and step down/up to hold ~60 fps (see the loop below).
+  const MAX_PR = Math.min(devicePixelRatio, 1.5), MIN_PR = Math.min(0.75, MAX_PR);
+  let pr = MAX_PR; renderer.setPixelRatio(pr); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace; host.appendChild(renderer.domElement);
   const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(34, 1, 0.1, 60);
 
@@ -136,7 +138,7 @@ export function initHeart({ host, labelsHost, reduced, getHR }) {
   const rim = new THREE.DirectionalLight(0x8f7bff, 1.6); rim.position.set(4, 1, -4); scene.add(rim);
 
   const group = new THREE.Group(); group.rotation.z = 0.08; scene.add(group);
-  const myoMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.3, sheen: 0.5, sheenColor: new THREE.Color('#ff9a9a'), sheenRoughness: 0.6, transparent: false });
+  const myoMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.3, transparent: false }); // no sheen lobe: it roughly doubles fragment cost for little visible gain
   const myo = new THREE.Mesh(buildMyocardium(), myoMat); group.add(myo);
   const vesselMeshes = [];
   for (const g of Object.values(GREAT)) {
@@ -181,9 +183,18 @@ export function initHeart({ host, labelsHost, reduced, getHR }) {
 
   const bump = (x, c, w) => Math.exp(-(((x - c) / w) ** 2));
   let beat = 0, selected = null; const clock = new THREE.Clock(), BASE = 1;
+  let onScreen = true, ema = 1 / 60, frames = 0, lastTune = 0;
+  new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; }).observe(host);
   renderer.setAnimationLoop(() => {
     const dt = Math.min(0.1, clock.getDelta());
-    if (host.offsetParent === null || document.hidden) return;
+    if (!onScreen || host.offsetParent === null || document.hidden) return;
+    ema += (dt - ema) * 0.05; frames++;
+    const now = performance.now();
+    if (frames > 90 && now - lastTune > 2500) { // hysteresis so quality doesn't flicker
+      const next = ema > 1 / 45 ? Math.max(MIN_PR, pr - 0.25) : ema < 1 / 57 ? Math.min(MAX_PR, pr + 0.25) : pr;
+      if (next !== pr) { pr = next; renderer.setPixelRatio(pr); renderer.setSize(W, H, false); }
+      lastTune = now;
+    }
     beat += dt * (getHR() || 70) / 60;
     if (tgt) { controls.target.lerp(tgt, 0.08); if (controls.target.distanceTo(tgt) < 0.01) tgt = null; }
     if (goal) {
